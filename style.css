@@ -510,12 +510,16 @@ textarea {
     display: flex;
     flex-direction: column;
     height: 100%;
+    overflow: hidden;
+    /* Prevent container scroll */
 }
 
 .history-list {
-    flex: 0 0 150px;
+    flex: 0 0 120px;
+    /* Fixed height for list */
     overflow-y: auto;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
 }
 
 .history-item {
@@ -538,8 +542,10 @@ textarea {
 
 .history-preview {
     flex: 1;
+    /* Takes remaining space */
     padding: 16px;
     overflow-y: auto;
+    /* Scrolls internally */
     background: #fdfdfd;
     position: relative;
     font-size: 14px;
@@ -547,10 +553,13 @@ textarea {
 }
 
 .restore-bar {
-    padding: 8px;
+    padding: 16px;
     border-top: 1px solid var(--border);
     display: flex;
     justify-content: flex-end;
+    background: var(--surface);
+    flex-shrink: 0;
+    /* Keep fixed */
 }
 
 .diff-added {

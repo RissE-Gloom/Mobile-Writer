@@ -534,13 +534,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Diff Logic
                 // Find previous version (chronologically before this one)
-                // Since we iterate reversed, the "next" in this array is the "previous" in time
-                // But easier to just look it up in STATE.history.
                 const currentIdx = STATE.history.findIndex(x => x.id === item.id);
                 const prevItem = (currentIdx > 0) ? STATE.history[currentIdx - 1] : null;
 
                 const diffHtml = computeDiff(prevItem ? prevItem.html : '', item.html);
                 previewContainer.innerHTML = diffHtml;
+
+                // --- Auto-scroll to first change ---
+                setTimeout(() => {
+                    const firstChange = previewContainer.querySelector('.diff-added, .diff-removed');
+                    if (firstChange) {
+                        firstChange.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 50);
             });
 
             listContainer.appendChild(div);

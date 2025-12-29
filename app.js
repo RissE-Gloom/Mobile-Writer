@@ -7,8 +7,8 @@ document.addEventListener('DOMContentLoaded', () => {
             '2': { name: 'Коллега', colorClass: 'user-edit-2' },
             '3': { name: 'Босс', colorClass: 'user-edit-3' }
         },
-        comments: JSON.parse(localStorage.getItem('doc_comments')) || [],
-        history: JSON.parse(localStorage.getItem('doc_history')) || []
+        comments: [], // Will load in initApp based on session
+        history: []   // Will load in initApp based on session
     };
 
     // --- DOM Elements ---
@@ -31,8 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeCommentId = null; // Currently viewed thread
 
     // --- Initialization ---
-    loadContent();
-    saveSnapshot(); // Initial snapshot
+    // Moved to initApp()
 
     // --- Toolbar Formatting ---
     toolbar.addEventListener('click', (e) => {
@@ -190,10 +189,6 @@ document.addEventListener('DOMContentLoaded', () => {
         STATE.comments.push(newComment);
         saveComments();
         saveContent(); // Save HTML because we added the span
-    }
-
-    function saveComments() {
-        localStorage.setItem('doc_comments', JSON.stringify(STATE.comments));
     }
 
     // Event Delegation for clicking on highlighted comments in editor
@@ -366,6 +361,16 @@ document.addEventListener('DOMContentLoaded', () => {
         URL.revokeObjectURL(url);
     });
 
+    // --- Share Link ---
+    document.getElementById('shareBtn').addEventListener('click', () => {
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            alert('Ссылка скопирована в буфер обмена! Отправьте её коллеге.');
+        }).catch(err => {
+            console.error('Ошибка копирования:', err);
+            alert('Не удалось скопировать ссылку. Скопируйте её из адресной строки.');
+        });
+    });
+
     // --- User Switching ---
     userSwitcherBtn.addEventListener('click', () => {
         userModal.classList.remove('hidden');
@@ -393,15 +398,53 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector(`.user-option[data-user-id="${STATE.currentUser}"]`).classList.add('active');
     }
 
+    // --- Session Management ---
+    const urlParams = new URLSearchParams(window.location.search);
+    let SESSION_ID = urlParams.get('session');
+
+    if (SESSION_ID) {
+        // Active Session
+        initApp();
+    } else {
+        // Landing Screen
+        landingPage.classList.remove('hidden');
+    }
+
+    startSessionBtn.addEventListener('click', () => {
+        // Generate ID
+        const newSessionId = Math.random().toString(36).substring(2, 10); // simple random string
+        // Redirect to same page with param
+        const url = new URL(window.location);
+        url.searchParams.set('session', newSessionId);
+        window.location.href = url.toString();
+    });
+
+    function initApp() {
+        landingPage.classList.add('hidden');
+        appContainer.classList.remove('hidden');
+
+        // Load data specific to this session
+        loadContent();
+
+        // Load comments logic needs an update to pull from session storage too
+        // We need to re-initialize comments from correct storage key
+        const savedComments = JSON.parse(localStorage.getItem(`doc_comments_${SESSION_ID}`)) || [];
+        STATE.comments = savedComments; // Override default
+
+        const savedHistory = JSON.parse(localStorage.getItem(`doc_history_${SESSION_ID}`)) || [];
+        STATE.history = savedHistory;
+
+        saveSnapshot(); // Initial snapshot
+    }
 
     // --- Persistence & History ---
     function saveContent() {
         const html = editor.innerHTML;
-        localStorage.setItem('doc_content', html);
+        localStorage.setItem(`doc_content_${SESSION_ID}`, html);
     }
 
     function loadContent() {
-        const html = localStorage.getItem('doc_content');
+        const html = localStorage.getItem(`doc_content_${SESSION_ID}`);
         if (html) {
             editor.innerHTML = html;
         }
@@ -419,7 +462,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (STATE.history.length > 20) STATE.history.shift();
 
         STATE.history.push(snapshot);
-        localStorage.setItem('doc_history', JSON.stringify(STATE.history));
+        localStorage.setItem(`doc_history_${SESSION_ID}`, JSON.stringify(STATE.history));
+    }
+
+    // Also need to update saveComments
+    function saveComments() {
+        localStorage.setItem(`doc_comments_${SESSION_ID}`, JSON.stringify(STATE.comments));
     }
 
     // History UI

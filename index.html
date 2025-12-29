@@ -15,42 +15,56 @@
 
 <body>
 
-    <!-- Top Bar: Title & User/History Controls -->
-    <header class="app-header">
-        <div class="header-left">
-            <span class="icon-doc">📄</span>
-            <input type="text" class="doc-title-input" value="Новый документ" id="docTitleInput">
-            <button id="downloadBtn" class="icon-btn" style="font-size: 18px;" title="Скачать doc">📥</button>
-        </div>
-        <div class="header-right">
-            <button id="historyBtn" class="icon-btn" title="История версий">↺</button>
-            <div class="user-avatar-container" id="userSwitcherBtn">
-                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" class="user-avatar"
-                    id="currentUserAvatar">
-                <span class="user-badge" id="currentUserId">1</span>
-            </div>
-        </div>
-    </header>
-
-    <!-- Formatting Toolbar (Sticky) -->
-    <div class="toolbar" id="toolbar">
-        <div class="toolbar-scroll">
-            <button data-cmd="bold" class="tool-btn" title="Жирный"><b>B</b></button>
-            <button data-cmd="italic" class="tool-btn" title="Курсив"><i>I</i></button>
-            <button data-cmd="underline" class="tool-btn" title="Подчеркнутый"><u>U</u></button>
-            <div class="separator"></div>
-            <button data-cmd="formatBlock" data-val="H1" class="tool-btn">H1</button>
-            <button data-cmd="formatBlock" data-val="H2" class="tool-btn">H2</button>
-            <button data-cmd="formatBlock" data-val="H3" class="tool-btn">H3</button>
+    <!-- Landing Page (Session Start) -->
+    <div id="landingPage" class="landing-container">
+        <div class="landing-content">
+            <span class="landing-icon">📝</span>
+            <h1>Мобильный Редактор</h1>
+            <p>Создайте новый документ и поделитесь ссылкой для совместной работы.</p>
+            <button id="startSessionBtn" class="primary-btn large-btn">Начать работу 🚀</button>
         </div>
     </div>
 
-    <!-- Main Editor Area -->
-    <main class="editor-container">
-        <div id="editor" class="editor" contenteditable="true" spellcheck="false">
-            <p>Начните печатать здесь...</p>
+    <!-- Main App Container (Hidden by default until session active) -->
+    <div id="appContainer" class="hidden">
+        <!-- Top Bar: Title & User/History Controls -->
+        <header class="app-header">
+            <div class="header-left">
+                <span class="icon-doc">📄</span>
+                <input type="text" class="doc-title-input" value="Новый документ" id="docTitleInput">
+                <button id="downloadBtn" class="icon-btn" style="font-size: 18px;" title="Скачать txt">📥</button>
+                <button id="shareBtn" class="icon-btn" style="font-size: 18px;" title="Поделиться ссылкой">🔗</button>
+            </div>
+            <div class="header-right">
+                <button id="historyBtn" class="icon-btn" title="История версий">↺</button>
+                <div class="user-avatar-container" id="userSwitcherBtn">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" class="user-avatar"
+                        id="currentUserAvatar">
+                    <span class="user-badge" id="currentUserId">1</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Formatting Toolbar (Sticky) -->
+        <div class="toolbar" id="toolbar">
+            <div class="toolbar-scroll">
+                <button data-cmd="bold" class="tool-btn" title="Жирный"><b>B</b></button>
+                <button data-cmd="italic" class="tool-btn" title="Курсив"><i>I</i></button>
+                <button data-cmd="underline" class="tool-btn" title="Подчеркнутый"><u>U</u></button>
+                <div class="separator"></div>
+                <button data-cmd="formatBlock" data-val="H1" class="tool-btn">H1</button>
+                <button data-cmd="formatBlock" data-val="H2" class="tool-btn">H2</button>
+                <button data-cmd="formatBlock" data-val="H3" class="tool-btn">H3</button>
+            </div>
         </div>
-    </main>
+
+        <!-- Main Editor Area -->
+        <main class="editor-container">
+            <div id="editor" class="editor" contenteditable="true" spellcheck="false">
+                <p>Начните печатать здесь...</p>
+            </div>
+        </main>
+    </div>
 
     <!-- Floating "Add Comment" Button (appears on selection) -->
     <button id="addCommentBtn" class="floating-action-btn hidden">

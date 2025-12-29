@@ -554,73 +554,56 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // A very basic text diff function
+    // Improved Diff using Longest Common Subsequence (LCS)
     function computeDiff(oldHtml, newHtml) {
-        // Strip tags for text comparison to act like "Track Changes" on text content?
-        // Or diff HTML? Diffing HTML is hard.
-        // User request: "hover original version".
-        // Strategy: Compare text content. Wrap changed words.
-
         const oldText = stripTags(oldHtml);
         const newText = stripTags(newHtml);
 
-        const oldWords = oldText.split(/\s+/);
-        const newWords = newText.split(/\s+/);
+        const oldWords = oldText.split(/\s+/).filter(w => w.length > 0);
+        const newWords = newText.split(/\s+/).filter(w => w.length > 0);
 
-        let output = '';
-        let i = 0; // old
-        let j = 0; // new
+        const matrix = [];
+        for (let i = 0; i <= oldWords.length; i++) {
+            matrix[i] = new Array(newWords.length + 1).fill(0);
+        }
 
-        // Simple distinct word matching (Naive Longest Common Subsequence is better but expensive for vanilla without libs)
-        // We will do a very simple forward pass.
-
-        while (i < oldWords.length || j < newWords.length) {
-            if (i < oldWords.length && j < newWords.length && oldWords[i] === newWords[j]) {
-                output += oldWords[i] + ' ';
-                i++;
-                j++;
-            } else {
-                // Mismatch.
-                // Is it an insertion? (Present in new, not in old)
-                // Is it a deletion? (Present in old, not in new)
-                // Simple heuristic: Look ahead.
-                let foundInNew = -1;
-                for (let k = j; k < Math.min(j + 5, newWords.length); k++) {
-                    if (oldWords[i] === newWords[k]) {
-                        foundInNew = k;
-                        break;
-                    }
-                }
-
-                if (foundInNew !== -1) {
-                    // It was an insertion before the match
-                    for (let k = j; k < foundInNew; k++) {
-                        output += `<span class="diff-added" data-original="Добавлено">${newWords[k]}</span> `;
-                    }
-                    j = foundInNew;
+        // Fill LCS matrix
+        for (let i = 1; i <= oldWords.length; i++) {
+            for (let j = 1; j <= newWords.length; j++) {
+                if (oldWords[i - 1] === newWords[j - 1]) {
+                    matrix[i][j] = matrix[i - 1][j - 1] + 1;
                 } else {
-                    // Treat as replacement/deletion
-                    if (i < oldWords.length) {
-                        // Check if it's a replacement (new word here?)
-                        if (j < newWords.length) {
-                            output += `<span class="diff-added" data-original="${oldWords[i]}">${newWords[j]}</span> `;
-                            j++;
-                        } else {
-                            // Deletion, just skip it or show standard strikethrough?
-                            // User asked: "hover... shows original".
-                            // If deleted, we usually show strikethrough.
-                            // But user said: "when text changed... highlighted... hover shows original".
-                            // This implies MODIFICATION.
-                        }
-                        i++;
-                    } else if (j < newWords.length) {
-                        // Tail insertion
-                        output += `<span class="diff-added" data-original="Добавлено">${newWords[j]}</span> `;
-                        j++;
-                    }
+                    matrix[i][j] = Math.max(matrix[i - 1][j], matrix[i][j - 1]);
                 }
             }
         }
-        return output;
+
+        // Backtrack to find diff
+        let output = [];
+        let i = oldWords.length;
+        let j = newWords.length;
+
+        while (i > 0 || j > 0) {
+            if (i > 0 && j > 0 && oldWords[i - 1] === newWords[j - 1]) {
+                output.unshift(oldWords[i - 1]);
+                i--;
+                j--;
+            } else if (j > 0 && (i === 0 || matrix[i][j - 1] >= matrix[i - 1][j])) {
+                // Insertion (present in new, not old)
+                output.unshift(`<span class="diff-added" data-original="Добавлено">${newWords[j - 1]}</span>`);
+                j--;
+            } else {
+                // Deletion (present in old, not new)
+                // We show deletions? Or just modifications? 
+                // User requirement: "highlight changed place".
+                // If I delete a word, it should probably be shown as removed or just show the new state?
+                // Standard diff shows deletions. Let's show strikethrough for removed.
+                output.unshift(`<span class="diff-removed" style="text-decoration:line-through; color:#999; background:#ffeebb;">${oldWords[i - 1]}</span>`);
+                i--;
+            }
+        }
+
+        return output.join(' ');
     }
 
     function stripTags(html) {

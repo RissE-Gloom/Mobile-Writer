@@ -122,7 +122,12 @@ body {
 }
 
 /* Toolbar */
-/* Toolbar handled near end of file for sticky overrides */
+.toolbar {
+    background: var(--surface);
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
 
 .toolbar-scroll {
     display: flex;
@@ -428,98 +433,17 @@ textarea {
     background: #e8f0fe;
 }
 
-/* Landing Page */
-.landing-container {
-    height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    text-align: center;
-    padding: 20px;
-}
-
-.landing-content {
-    background: white;
-    padding: 40px;
-    border-radius: 20px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    max-width: 400px;
-    width: 100%;
-}
-
-.landing-icon {
-    font-size: 64px;
-    display: block;
-    margin-bottom: 20px;
-}
-
-.landing-content h1 {
-    margin: 0 0 10px 0;
-    color: var(--text);
-    font-size: 24px;
-}
-
-.landing-content p {
-    color: var(--text-secondary);
-    margin-bottom: 30px;
-    line-height: 1.5;
-}
-
-.large-btn {
-    width: 100%;
-    padding: 16px;
-    font-size: 18px;
-    border-radius: 12px;
-    background: var(--primary);
-    color: white;
-    border: none;
-    cursor: pointer;
-    font-weight: 600;
-    box-shadow: 0 4px 6px rgba(26, 115, 232, 0.3);
-    transition: transform 0.2s;
-}
-
-.large-btn:active {
-    transform: scale(0.98);
-}
-
-/* App Container Layout Fix */
-#appContainer {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-}
-
-/* Sticky Toolbar Fix */
-.toolbar {
-    background: var(--surface);
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-    position: relative;
-    /* Ensure it stays above scrolling content if needed, but flex handles it currently */
-    z-index: 10;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    /* Visual separation */
-}
-
 /* History List */
 .history-container {
     display: flex;
     flex-direction: column;
     height: 100%;
-    overflow: hidden;
-    /* Prevent container scroll */
 }
 
 .history-list {
-    flex: 0 0 120px;
-    /* Fixed height for list */
+    flex: 0 0 150px;
     overflow-y: auto;
     border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
 }
 
 .history-item {
@@ -542,10 +466,8 @@ textarea {
 
 .history-preview {
     flex: 1;
-    /* Takes remaining space */
     padding: 16px;
     overflow-y: auto;
-    /* Scrolls internally */
     background: #fdfdfd;
     position: relative;
     font-size: 14px;
@@ -553,13 +475,10 @@ textarea {
 }
 
 .restore-bar {
-    padding: 16px;
+    padding: 8px;
     border-top: 1px solid var(--border);
     display: flex;
     justify-content: flex-end;
-    background: var(--surface);
-    flex-shrink: 0;
-    /* Keep fixed */
 }
 
 .diff-added {
@@ -651,72 +570,4 @@ textarea {
 /* Utilities */
 .hidden {
     display: none !important;
-}
-
-/* Expiration Badge */
-.expiration-badge {
-    background: #e6f4ea;
-    color: #188038;
-    padding: 6px 12px;
-    border-radius: 16px;
-    font-size: 13px;
-    font-weight: 600;
-    margin-right: 8px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    transition: all 0.3s ease;
-    cursor: help;
-}
-
-.expiration-badge::before {
-    content: '⏳';
-    font-size: 12px;
-}
-
-.expiration-badge.warn {
-    background: #fef7e0;
-    color: #b06000;
-}
-
-.expiration-badge.critical {
-    background: #fce8e6;
-    color: #c5221f;
-    animation: pulse 2s infinite;
-}
-
-.expiration-badge.decay {
-    background: #000;
-    color: #ff4444;
-    border: 1px solid #ff4444;
-    font-family: 'Roboto Mono', monospace;
-}
-
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.6; }
-    100% { opacity: 1; }
-}
-
-/* Document Decay Effect */
-.editor.decay-mode {
-    filter: grayscale(100%) contrast(1.2) sepia(0.2);
-    background-color: #f8f8f8;
-    pointer-events: none; /* Block editing */
-    user-select: none;
-    position: relative;
-    overflow: hidden;
-}
-
-.editor.decay-mode::after {
-    content: "ДОКУМЕНТ УНИЧТОЖАЕТСЯ";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(-45deg);
-    font-size: 48px;
-    font-weight: 900;
-    color: rgba(255, 0, 0, 0.1);
-    white-space: nowrap;
-    pointer-events: none;
 }

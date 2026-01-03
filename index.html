@@ -11,6 +11,17 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+
+    <!-- Import Map for Firebase SDKs (allows usage of 'firebase/app' imports without bundler) -->
+    <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
+        "firebase/analytics": "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js"
+      }
+    }
+    </script>
 </head>
 
 <body>
@@ -36,6 +47,7 @@
                 <button id="shareBtn" class="icon-btn" style="font-size: 18px;" title="Поделиться ссылкой">🔗</button>
             </div>
             <div class="header-right">
+                <div id="expirationBadge" class="expiration-badge" title="До авто-удаления">7 дн.</div>
                 <button id="historyBtn" class="icon-btn" title="История версий">↺</button>
                 <div class="user-avatar-container" id="userSwitcherBtn">
                     <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" class="user-avatar"
@@ -121,7 +133,7 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 
 </html>

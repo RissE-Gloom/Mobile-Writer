@@ -461,6 +461,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     editor.innerHTML = data.content || '';
                 }
 
+                // Load Title
+                if (data.title && document.activeElement !== docTitleInput) {
+                    docTitleInput.value = data.title;
+                }
+
                 STATE.comments = data.comments || [];
                 STATE.history = data.history || [];
 
@@ -476,9 +481,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderCommentsList();
 
                 // ContentEditable is managed by checkExpiration now
+            } else {
                 // Doc doesn't exist yet, create it empty
                 const now = new Date().toISOString();
                 setDoc(docRef, {
+                    title: 'Новый документ',
                     content: '',
                     comments: [],
                     history: [],
@@ -486,6 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 editor.innerHTML = '<p>Новый документ. Начните печатать...</p>';
                 editor.contentEditable = true;
+                docTitleInput.value = 'Новый документ';
 
                 // I am the Creator
                 setMyRole('1');
@@ -494,6 +502,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Better: Debounced Title Save
+    let titleTimeout;
+    docTitleInput.addEventListener('input', () => {
+        clearTimeout(titleTimeout);
+        titleTimeout = setTimeout(() => {
+            const docRef = doc(db, "documents", SESSION_ID);
+            updateDoc(docRef, { title: docTitleInput.value }).catch(err => console.error("Error saving title:", err));
+        }, 1000);
+    });
 
     // --- Role Management ---
     function setMyRole(roleId) {
@@ -672,7 +690,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button class="close-modal-btn" style="font-size:24px; background:none; border:none; cursor:pointer;" onclick="document.getElementById('historyModal').classList.add('hidden')">✕</button>
                 </div>
                 <div class="history-container">
-                    <div id="historyList" class="history-list"></div>
+                    <div id="historyList" class="history-list">
+                        ${STATE.history.length === 0 ? '<p style="padding:16px; color:#999; text-align:center;">История изменений пуста</p>' : ''}
+                    </div>
                     <div id="historyPreview" class="history-preview" style="white-space: pre-wrap; word-wrap: break-word;">
                         <p style="color:#999; text-align:center; margin-top:20px;">Выберите версию для просмотра изменений</p>
                     </div>

@@ -4,11 +4,10 @@ import { doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 document.addEventListener('DOMContentLoaded', () => {
     // --- State ---
     const STATE = {
-        currentUser: '2', // Default to 'Colleague' until proven otherwise
+        currentUser: '1', // Default to 'Author'
         users: {
             '1': { name: 'Автор', colorClass: 'user-edit-1' },
-            '2': { name: 'Коллега', colorClass: 'user-edit-2' },
-            '3': { name: 'Босс', colorClass: 'user-edit-3' }
+            '2': { name: 'Коллега', colorClass: 'user-edit-2' }
         },
         comments: [], // Will load in initApp based on session
         history: []   // Will load in initApp based on session
@@ -445,8 +444,9 @@ document.addEventListener('DOMContentLoaded', () => {
         appContainer.classList.remove('hidden');
 
         // Initial Loading State
-        editor.innerHTML = '<p style="color:gray">Загрузка документа...</p>';
-        editor.contentEditable = false;
+        // Initial Loading State
+        editor.innerHTML = '<p>Загрузка документа...</p>'; // No inline style to prevent gray text persistence
+        editor.contentEditable = true; // FORCE ENABLE IMMEDIATELY 
 
         const docRef = doc(db, "documents", SESSION_ID);
 
@@ -466,6 +466,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Expiration Check
                 checkExpiration(data.createdAt);
+
+                // Auto-Role Logic:
+                // If I have no saved role and this doc exists, I am a Colleague ('2').
+                if (!localStorage.getItem(`role_${SESSION_ID}`)) {
+                    setMyRole('2');
+                }
 
                 renderCommentsList();
 
@@ -517,9 +523,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Expiration & Decay Logic ---
     function checkExpiration(createdAtIso) {
+        // SAFE DEFAULT: Always allow editing first
+        editor.contentEditable = true;
+        editor.classList.remove('decay-mode');
+
         if (!createdAtIso) return;
 
         const created = new Date(createdAtIso);
+        // Safety check for invalid dates
+        if (isNaN(created.getTime())) return;
+
         const now = new Date();
         const diffMs = now - created;
         const diffDays = diffMs / (1000 * 60 * 60 * 24);
@@ -536,14 +549,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 expirationBadge.textContent = '< 24ч';
                 expirationBadge.classList.add('critical');
             } else {
-                // Short format for mobile and desktop
                 expirationBadge.textContent = `${Math.ceil(daysLeft)} дн.`;
                 if (daysLeft < 3) expirationBadge.classList.add('warn');
             }
-            if (!editor.classList.contains('decay-mode')) editor.contentEditable = true;
+            // Editor is already enabled above
         } else if (diffDays < LIFE_DAYS + DECAY_DAYS) {
             // Day 8
-            expirationBadge.textContent = "⚠"; // Minimal
+            expirationBadge.textContent = "⚠";
             expirationBadge.classList.add('decay');
             editor.contentEditable = false;
             editor.classList.add('decay-mode');

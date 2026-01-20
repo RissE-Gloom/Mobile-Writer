@@ -764,4 +764,10 @@ textarea {
             margin-right: 0;
             white-space: nowrap;
         }
+
+        /* Move floating action button below selection instead of above, 
+           as native selection menu overlaps it on mobile */
+        .floating-action-btn {
+            margin-top: 110px;
+        }
     }

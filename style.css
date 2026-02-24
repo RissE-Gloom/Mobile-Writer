@@ -20,6 +20,14 @@
   -webkit-tap-highlight-color: transparent;
   margin: 0;
   padding: 0;
+  outline: none;
+}
+
+button {
+  outline: none !important;
+  border: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 body {
@@ -98,16 +106,6 @@ body {
   gap: 16px;
 }
 
-/* Ensure modal header is properly aligned */
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 12px;
-  margin-bottom: 12px;
-  border-bottom: 1px solid var(--border);
-}
-
 .icon-btn {
   background: none;
   border: none;
@@ -119,12 +117,19 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: all 0.2s;
+  outline: none;
 }
 
 .icon-btn:active {
   background: rgba(255, 255, 255, 0.2);
 }
+
+.icon-btn:focus {
+  outline: none;
+  box-shadow: none;
+}
+
 
 .user-avatar-container {
   position: relative;
@@ -769,13 +774,34 @@ textarea {
     z-index: 3000;
     display: flex;
     flex-direction: column;
-    box-shadow: 5px 0 15px rgba(0,0,0,0.1);
+    box-shadow: 5px 0 25px rgba(0,0,0,0.15);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
 }
 
 .side-menu.hidden {
     transform: translateX(-100%);
-    display: flex !important; /* Keep flex but hide via transform */
+    pointer-events: none;
+}
+
+/* Menu Overlay */
+.menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    z-index: 2500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.menu-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .side-menu-header {

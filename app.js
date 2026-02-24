@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Burger Menu Elements
     const sideMenu = document.getElementById('sideMenu');
+    const menuOverlay = document.getElementById('menuOverlay');
     const burgerBtn = document.getElementById('burgerBtn');
     const closeMenuBtn = document.getElementById('closeMenuBtn');
 
@@ -123,27 +124,34 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Burger Menu Logic ---
-    burgerBtn.addEventListener('click', () => {
-        sideMenu.classList.remove('hidden');
+    function toggleMenu(show) {
+        if (show) {
+            sideMenu.classList.remove('hidden');
+            menuOverlay.classList.add('active');
+        } else {
+            sideMenu.classList.add('hidden');
+            menuOverlay.classList.remove('active');
+        }
+    }
+
+    burgerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleMenu(true);
     });
 
     closeMenuBtn.addEventListener('click', () => {
-        sideMenu.classList.add('hidden');
+        toggleMenu(false);
+    });
+
+    menuOverlay.addEventListener('click', () => {
+        toggleMenu(false);
     });
 
     // Close menu when clicking on any action button inside it
     sideMenu.querySelectorAll('.menu-item-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            sideMenu.classList.add('hidden');
-            // Action is handled by existing listeners if IDs match
+            toggleMenu(false);
         });
-    });
-
-    // Close menu on click outside
-    document.addEventListener('mousedown', (e) => {
-        if (!sideMenu.classList.contains('hidden') && !sideMenu.contains(e.target) && !burgerBtn.contains(e.target)) {
-            sideMenu.classList.add('hidden');
-        }
     });
 
     // --- Comments Logic ---

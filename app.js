@@ -520,7 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Initial Loading State
         // Initial Loading State
-        editor.innerHTML = '<p>Загрузка документа...</p>'; // No inline style to prevent gray text persistence
+        editor.innerHTML = ''; // No inline style to prevent gray text persistence
         editor.contentEditable = true; // FORCE ENABLE IMMEDIATELY 
 
         const docRef = doc(db, "documents", SESSION_ID);

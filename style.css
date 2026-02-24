@@ -79,9 +79,9 @@ body {
 }
 
 .editor[contenteditable]:empty:before {
-    content: attr(data-placeholder);
-    color: #999;
-    pointer-events: none;
+  content: attr(data-placeholder);
+  color: #999;
+  pointer-events: none;
 }
 
 .icon-doc {

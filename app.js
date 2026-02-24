@@ -45,6 +45,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentSelectionRange = null;
     let activeCommentId = null; // Currently viewed thread
 
+    // --- Force Save on Close ---
+    window.addEventListener('beforeunload', () => {
+        if (saveTimeout) {
+            // Force immediate save of pending changes
+            const html = editor.innerHTML;
+            const docRef = doc(db, "documents", SESSION_ID);
+            // using a synchronous-like update or just non-debounced update
+            updateDoc(docRef, { content: html }).catch(() => {});
+        }
+    });
+
     // --- Initialization ---
     // Moved to initApp()
 
@@ -560,14 +571,16 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // Doc doesn't exist yet, create it empty
                 const now = new Date().toISOString();
+                const initialContent = '<p>Новый документ. Начните печатать...</p>';
                 setDoc(docRef, {
                     title: 'Новый документ',
-                    content: '',
+                    content: initialContent,
                     comments: [],
                     history: [],
                     createdAt: now
-                });
-                editor.innerHTML = '<p>Новый документ. Начните печатать...</p>';
+                }).catch(err => console.error("Error creating document:", err));
+                
+                editor.innerHTML = initialContent;
                 editor.contentEditable = true;
                 docTitleInput.value = 'Новый документ';
 

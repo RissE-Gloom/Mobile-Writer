@@ -1,14 +1,16 @@
+import { db } from './firebase-config.js';
+import { doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- State ---
     const STATE = {
-        currentUser: '1', // Default user
+        currentUser: '1', // Default to 'Author'
         users: {
-            '1': { name: 'Я', colorClass: 'user-edit-1' },
-            '2': { name: 'Коллега', colorClass: 'user-edit-2' },
-            '3': { name: 'Босс', colorClass: 'user-edit-3' }
+            '1': { name: 'Автор', colorClass: 'user-edit-1' },
+            '2': { name: 'Коллега', colorClass: 'user-edit-2' }
         },
-        comments: JSON.parse(localStorage.getItem('doc_comments')) || [],
-        history: JSON.parse(localStorage.getItem('doc_history')) || []
+        comments: [], // Will load in initApp based on session
+        history: []   // Will load in initApp based on session
     };
 
     // --- DOM Elements ---
@@ -26,13 +28,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const historyBtn = document.getElementById('historyBtn');
     const historyModal = document.getElementById('historyModal');
     const historyList = document.getElementById('historyList');
+    const expirationBadge = document.getElementById('expirationBadge');
 
     let currentSelectionRange = null;
     let activeCommentId = null; // Currently viewed thread
 
     // --- Initialization ---
-    loadContent();
-    saveSnapshot(); // Initial snapshot
+    // Moved to initApp()
 
     // --- Toolbar Formatting ---
     toolbar.addEventListener('click', (e) => {
@@ -188,12 +190,18 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         STATE.comments.push(newComment);
-        saveComments();
-        saveContent(); // Save HTML because we added the span
-    }
 
-    function saveComments() {
-        localStorage.setItem('doc_comments', JSON.stringify(STATE.comments));
+        // FIX: Save BOTH comments and content immediately to avoid race condition with onSnapshot.
+        // If we only save comments, the snapshot listener might trigger with old content (missing the span),
+        // overwriting our local DOM change.
+        clearTimeout(saveTimeout); // Cancel pending text saves
+        const html = editor.innerHTML;
+
+        const docRef = doc(db, "documents", SESSION_ID);
+        updateDoc(docRef, {
+            comments: STATE.comments,
+            content: html
+        }).catch(err => console.error("Error saving comment & content:", err));
     }
 
     // Event Delegation for clicking on highlighted comments in editor
@@ -312,7 +320,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 2. Remove from state
         STATE.comments = STATE.comments.filter(c => c.id !== id);
-        saveComments();
+
+        // FIX: Save content immediately
+        clearTimeout(saveTimeout);
+        const docRef = doc(db, "documents", SESSION_ID);
+        updateDoc(docRef, {
+            comments: STATE.comments,
+            content: editor.innerHTML
+        }).catch(err => console.error("Error deleting thread:", err));
 
         // 3. Re-render
         renderCommentsList();
@@ -366,6 +381,16 @@ document.addEventListener('DOMContentLoaded', () => {
         URL.revokeObjectURL(url);
     });
 
+    // --- Share Link ---
+    document.getElementById('shareBtn').addEventListener('click', () => {
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            alert('Ссылка скопирована в буфер обмена! Отправьте её коллеге.');
+        }).catch(err => {
+            console.error('Ошибка копирования:', err);
+            alert('Не удалось скопировать ссылку. Скопируйте её из адресной строки.');
+        });
+    });
+
     // --- User Switching ---
     userSwitcherBtn.addEventListener('click', () => {
         userModal.classList.remove('hidden');
@@ -393,19 +418,230 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector(`.user-option[data-user-id="${STATE.currentUser}"]`).classList.add('active');
     }
 
+    // --- Session Management ---
+    const urlParams = new URLSearchParams(window.location.search);
+    let SESSION_ID = urlParams.get('session');
 
-    // --- Persistence & History ---
-    function saveContent() {
-        const html = editor.innerHTML;
-        localStorage.setItem('doc_content', html);
+    if (SESSION_ID) {
+        // Active Session
+        initApp();
+    } else {
+        // Landing Screen
+        landingPage.classList.remove('hidden');
     }
 
-    function loadContent() {
-        const html = localStorage.getItem('doc_content');
-        if (html) {
-            editor.innerHTML = html;
+    startSessionBtn.addEventListener('click', () => {
+        // Generate ID
+        const newSessionId = Math.random().toString(36).substring(2, 10); // simple random string
+        // Redirect to same page with param
+        const url = new URL(window.location);
+        url.searchParams.set('session', newSessionId);
+        window.location.href = url.toString();
+    });
+
+    function initApp() {
+        landingPage.classList.add('hidden');
+        appContainer.classList.remove('hidden');
+
+        // Initial Loading State
+        // Initial Loading State
+        editor.innerHTML = '<p>Загрузка документа...</p>'; // No inline style to prevent gray text persistence
+        editor.contentEditable = true; // FORCE ENABLE IMMEDIATELY 
+
+        const docRef = doc(db, "documents", SESSION_ID);
+
+        // Real-time Listener
+        onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+
+                // Only update editor if we are not currently typing to avoid cursor jumps
+                // In a robust app, we'd use CRDTs. Here: simple check.
+                if (document.activeElement !== editor) {
+                    editor.innerHTML = data.content || '';
+                }
+
+                // Load Title
+                if (data.title && document.activeElement !== docTitleInput) {
+                    docTitleInput.value = data.title;
+                }
+
+                STATE.comments = data.comments || [];
+                STATE.history = data.history || [];
+
+                // Expiration Check
+                checkExpiration(data.createdAt);
+
+                // Auto-Role Logic:
+                // If I have no saved role and this doc exists, I am a Colleague ('2').
+                if (!localStorage.getItem(`role_${SESSION_ID}`)) {
+                    setMyRole('2');
+                }
+
+                renderCommentsList();
+
+                // ContentEditable is managed by checkExpiration now
+            } else {
+                // Doc doesn't exist yet, create it empty
+                const now = new Date().toISOString();
+                setDoc(docRef, {
+                    title: 'Новый документ',
+                    content: '',
+                    comments: [],
+                    history: [],
+                    createdAt: now
+                });
+                editor.innerHTML = '<p>Новый документ. Начните печатать...</p>';
+                editor.contentEditable = true;
+                docTitleInput.value = 'Новый документ';
+
+                // I am the Creator
+                setMyRole('1');
+
+                checkExpiration(now);
+            }
+        });
+    }
+
+    // Better: Debounced Title Save
+    let titleTimeout;
+    docTitleInput.addEventListener('input', () => {
+        clearTimeout(titleTimeout);
+        titleTimeout = setTimeout(() => {
+            const docRef = doc(db, "documents", SESSION_ID);
+            updateDoc(docRef, { title: docTitleInput.value }).catch(err => console.error("Error saving title:", err));
+        }, 1000);
+    });
+
+    // --- Role Management ---
+    function setMyRole(roleId) {
+        STATE.currentUser = roleId;
+        localStorage.setItem(`role_${SESSION_ID}`, roleId);
+        updateUserUI();
+    }
+
+    function determineRole() {
+        // 1. check previously saved role
+        const saved = localStorage.getItem(`role_${SESSION_ID}`);
+        if (saved && STATE.users[saved]) {
+            STATE.currentUser = saved;
+        } else {
+            // If no saved role, wait for initApp. 
+            // If doc exists, we will default to '2' (Colleague).
+            // If doc created, we default to '1' (Creator).
+            // Current default in STATE is '1', we should change it to wait or '2'.
+            // Let's set default to '2' (Guest) initially? 
+            // Actually, keep default '1' for safety, but override in onSnapshot.
+        }
+        updateUserUI();
+    }
+
+    // Call on load
+    determineRole();
+
+    // --- Expiration & Decay Logic ---
+    function checkExpiration(createdAtIso) {
+        // SAFE DEFAULT: Always allow editing first
+        editor.contentEditable = true;
+        editor.classList.remove('decay-mode');
+
+        if (!createdAtIso) return;
+
+        const created = new Date(createdAtIso);
+        // Safety check for invalid dates
+        if (isNaN(created.getTime())) return;
+
+        const now = new Date();
+        const diffMs = now - created;
+        const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+        const LIFE_DAYS = 7;
+        const DECAY_DAYS = 1;
+        const daysLeft = LIFE_DAYS - diffDays;
+
+        expirationBadge.className = 'expiration-badge'; // reset
+
+        if (diffDays < LIFE_DAYS) {
+            // Alive
+            if (daysLeft < 1) {
+                expirationBadge.textContent = '< 24ч';
+                expirationBadge.classList.add('critical');
+            } else {
+                expirationBadge.textContent = `${Math.ceil(daysLeft)} дн.`;
+                if (daysLeft < 3) expirationBadge.classList.add('warn');
+            }
+            // Editor is already enabled above
+        } else if (diffDays < LIFE_DAYS + DECAY_DAYS) {
+            // Day 8
+            expirationBadge.textContent = "⚠";
+            expirationBadge.classList.add('decay');
+            editor.contentEditable = false;
+            editor.classList.add('decay-mode');
+            processDecay(created, now, LIFE_DAYS);
+        } else {
+            // Dead
+            expirationBadge.textContent = "УНИЧТОЖЕНО";
+            expirationBadge.classList.add('decay');
+            editor.innerHTML = "";
+            editor.contentEditable = false;
+            document.body.style.backgroundColor = "#000";
         }
     }
+
+    function processDecay(createdAt, now, lifeDays) {
+        const startDecay = new Date(createdAt.getTime() + lifeDays * 24 * 60 * 60 * 1000);
+        const decayDurationMs = 24 * 60 * 60 * 1000;
+        const passedInDecay = now - startDecay;
+
+        let progress = passedInDecay / decayDurationMs;
+        if (progress > 1) progress = 1;
+        if (progress < 0) progress = 0;
+
+        const contentDiv = document.createElement('div');
+        contentDiv.innerHTML = editor.innerHTML;
+        const allNodes = Array.from(contentDiv.childNodes);
+        const totalNodes = allNodes.length;
+
+        if (totalNodes === 0) return;
+
+        const nodesToKeep = Math.floor(totalNodes * (1 - progress));
+
+        if (nodesToKeep < totalNodes) {
+            for (let i = totalNodes - 1; i >= nodesToKeep; i--) {
+                contentDiv.removeChild(allNodes[i]);
+            }
+
+            const newHtml = contentDiv.innerHTML;
+
+            if (!window.lastDecayUpdate || (Date.now() - window.lastDecayUpdate > 5000)) {
+                if (editor.innerHTML !== newHtml) {
+                    editor.innerHTML = newHtml;
+                    window.lastDecayUpdate = Date.now();
+                    const docRef = doc(db, "documents", SESSION_ID);
+                    updateDoc(docRef, { content: newHtml }).catch(() => { });
+                }
+            }
+        }
+    }
+
+    // --- Persistence & History ---
+
+    // Debounce Save to prevent too many writes
+    let saveTimeout;
+    function saveContent() {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+            const html = editor.innerHTML;
+            // Write to Firestore
+            const docRef = doc(db, "documents", SESSION_ID);
+            updateDoc(docRef, {
+                content: html
+            }).catch(err => console.error("Error saving content:", err));
+        }, 500);
+    }
+
+    // No longer needed, handled by onSnapshot
+    function loadContent() { }
 
     function saveSnapshot() {
         const snapshot = {
@@ -419,7 +655,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (STATE.history.length > 20) STATE.history.shift();
 
         STATE.history.push(snapshot);
-        localStorage.setItem('doc_history', JSON.stringify(STATE.history));
+
+        const docRef = doc(db, "documents", SESSION_ID);
+        updateDoc(docRef, {
+            history: STATE.history
+        }).catch(err => console.error("Error saving history:", err));
+    }
+
+    function saveComments() {
+        const docRef = doc(db, "documents", SESSION_ID);
+        updateDoc(docRef, {
+            comments: STATE.comments
+        }).catch(err => console.error("Error saving comments:", err));
     }
 
     // History UI
@@ -443,8 +690,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button class="close-modal-btn" style="font-size:24px; background:none; border:none; cursor:pointer;" onclick="document.getElementById('historyModal').classList.add('hidden')">✕</button>
                 </div>
                 <div class="history-container">
-                    <div id="historyList" class="history-list"></div>
-                    <div id="historyPreview" class="history-preview">
+                    <div id="historyList" class="history-list">
+                        ${STATE.history.length === 0 ? '<p style="padding:16px; color:#999; text-align:center;">История изменений пуста</p>' : ''}
+                    </div>
+                    <div id="historyPreview" class="history-preview" style="white-space: pre-wrap; word-wrap: break-word;">
                         <p style="color:#999; text-align:center; margin-top:20px;">Выберите версию для просмотра изменений</p>
                     </div>
                     <div class="restore-bar">
@@ -484,15 +733,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentHistoryId = item.id;
                 restoreBtn.disabled = false;
 
-                // Diff Logic
-                // Find previous version (chronologically before this one)
-                // Since we iterate reversed, the "next" in this array is the "previous" in time
-                // But easier to just look it up in STATE.history.
+                // Improved Diff Logic (Tag-Aware)
                 const currentIdx = STATE.history.findIndex(x => x.id === item.id);
                 const prevItem = (currentIdx > 0) ? STATE.history[currentIdx - 1] : null;
 
                 const diffHtml = computeDiff(prevItem ? prevItem.html : '', item.html);
                 previewContainer.innerHTML = diffHtml;
+
+                // Ensure styles allow wrapping
+                previewContainer.style.whiteSpace = 'pre-wrap';
+                previewContainer.style.wordWrap = 'break-word';
+
+                // --- Auto-scroll to first change ---
+                setTimeout(() => {
+                    const firstChange = previewContainer.querySelector('.diff-added, .diff-removed');
+                    if (firstChange) {
+                        firstChange.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 50);
             });
 
             listContainer.appendChild(div);
@@ -500,79 +758,72 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // A very basic text diff function
+    // Improved Diff using Longest Common Subsequence (LCS)
     function computeDiff(oldHtml, newHtml) {
-        // Strip tags for text comparison to act like "Track Changes" on text content?
-        // Or diff HTML? Diffing HTML is hard.
-        // User request: "hover original version".
-        // Strategy: Compare text content. Wrap changed words.
+        // Tokenize by HTML Tags, Whitespace, and Words
+        // Capture group () in split keeps the separator
+        const tokenize = (str) => str.split(/(<[^>]+>|\s+|[^<>\s]+)/).filter(w => w !== "");
 
-        const oldText = stripTags(oldHtml);
-        const newText = stripTags(newHtml);
+        const oldTokens = tokenize(oldHtml);
+        const newTokens = tokenize(newHtml);
 
-        const oldWords = oldText.split(/\s+/);
-        const newWords = newText.split(/\s+/);
+        const matrix = [];
+        for (let i = 0; i <= oldTokens.length; i++) {
+            matrix[i] = new Array(newTokens.length + 1).fill(0);
+        }
 
-        let output = '';
-        let i = 0; // old
-        let j = 0; // new
-
-        // Simple distinct word matching (Naive Longest Common Subsequence is better but expensive for vanilla without libs)
-        // We will do a very simple forward pass.
-
-        while (i < oldWords.length || j < newWords.length) {
-            if (i < oldWords.length && j < newWords.length && oldWords[i] === newWords[j]) {
-                output += oldWords[i] + ' ';
-                i++;
-                j++;
-            } else {
-                // Mismatch.
-                // Is it an insertion? (Present in new, not in old)
-                // Is it a deletion? (Present in old, not in new)
-                // Simple heuristic: Look ahead.
-                let foundInNew = -1;
-                for (let k = j; k < Math.min(j + 5, newWords.length); k++) {
-                    if (oldWords[i] === newWords[k]) {
-                        foundInNew = k;
-                        break;
-                    }
-                }
-
-                if (foundInNew !== -1) {
-                    // It was an insertion before the match
-                    for (let k = j; k < foundInNew; k++) {
-                        output += `<span class="diff-added" data-original="Добавлено">${newWords[k]}</span> `;
-                    }
-                    j = foundInNew;
+        // Fill LCS matrix
+        for (let i = 1; i <= oldTokens.length; i++) {
+            for (let j = 1; j <= newTokens.length; j++) {
+                if (oldTokens[i - 1] === newTokens[j - 1]) {
+                    matrix[i][j] = matrix[i - 1][j - 1] + 1;
                 } else {
-                    // Treat as replacement/deletion
-                    if (i < oldWords.length) {
-                        // Check if it's a replacement (new word here?)
-                        if (j < newWords.length) {
-                            output += `<span class="diff-added" data-original="${oldWords[i]}">${newWords[j]}</span> `;
-                            j++;
-                        } else {
-                            // Deletion, just skip it or show standard strikethrough?
-                            // User asked: "hover... shows original".
-                            // If deleted, we usually show strikethrough.
-                            // But user said: "when text changed... highlighted... hover shows original".
-                            // This implies MODIFICATION.
-                        }
-                        i++;
-                    } else if (j < newWords.length) {
-                        // Tail insertion
-                        output += `<span class="diff-added" data-original="Добавлено">${newWords[j]}</span> `;
-                        j++;
-                    }
+                    matrix[i][j] = Math.max(matrix[i - 1][j], matrix[i][j - 1]);
                 }
             }
         }
-        return output;
-    }
 
-    function stripTags(html) {
-        const tmp = document.createElement('DIV');
-        tmp.innerHTML = html;
-        return tmp.textContent || tmp.innerText || "";
+        // Backtrack
+        let output = [];
+        let i = oldTokens.length;
+        let j = newTokens.length;
+
+        function isTag(token) {
+            return token.startsWith('<') && token.endsWith('>');
+        }
+
+        while (i > 0 || j > 0) {
+            if (i > 0 && j > 0 && oldTokens[i - 1] === newTokens[j - 1]) {
+                // Match: just add the token
+                output.unshift(oldTokens[i - 1]);
+                i--;
+                j--;
+            } else if (j > 0 && (i === 0 || matrix[i][j - 1] >= matrix[i - 1][j])) {
+                // Insertion (New)
+                const token = newTokens[j - 1];
+                if (isTag(token)) {
+                    // If it's a tag, just insert it (formatting applied)
+                    // We don't color tags because it breaks rendering structure
+                    output.unshift(token);
+                } else {
+                    // Text/Space
+                    output.unshift(`<span class="diff-added" data-original="Добавлено">${token}</span>`);
+                }
+                j--;
+            } else {
+                // Deletion (Old)
+                const token = oldTokens[i - 1];
+                if (isTag(token)) {
+                    // If tag removed, we just don't output it. 
+                    // Formatting disappears.
+                } else {
+                    output.unshift(`<span class="diff-removed" title="Удалено" style="text-decoration:line-through; color:#999; background:#ffeebb;">${token}</span>`);
+                }
+                i--;
+            }
+        }
+
+        return output.join('');
     }
 
     function restoreSnapshot(id) {

@@ -34,7 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const landingPage = document.getElementById('landingPage');
     const startSessionBtn = document.getElementById('startSessionBtn');
     const downloadBtn = document.getElementById('downloadBtn');
-    const saveStatus = document.getElementById('saveStatus');
 
     // Burger Menu Elements
     const sideMenu = document.getElementById('sideMenu');
@@ -46,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentSelectionRange = null;
     let activeCommentId = null; // Currently viewed thread
     let lastLocalInputTime = 0; // Timestamp of last typing
-    let isInitialLoad = true; // Flag for first snapshot
+    let isInitialLoad = true; 
 
     // --- Force Save on Close ---
     window.addEventListener('beforeunload', () => {
@@ -531,9 +530,8 @@ document.addEventListener('DOMContentLoaded', () => {
         landingPage.classList.add('hidden');
         appContainer.classList.remove('hidden');
 
-        // Initial Loading State - indicate to user to wait
-        editor.innerHTML = '<p style="color: grey">Загрузка документа...</p>'; 
-        editor.contentEditable = false; 
+        // Do not block the user with "Loading" text
+        editor.contentEditable = true; 
         isInitialLoad = true; 
 
         const docRef = doc(db, "documents", SESSION_ID);
@@ -544,15 +542,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = docSnap.data();
 
                 const isTyping = document.activeElement === editor;
-                const timeSinceLastInput = Date.now() - lastLocalInputTime;
-
-                // Priority 1: ALWAYS load if it's the very first time and user hasn't started typing yet
-                // Priority 2: Load if not focused and enough time passed since last edit
-                if (isInitialLoad || (!isTyping && timeSinceLastInput > 2000)) {
+                
+                // If it's the first load, we MUST apply what's in the DB.
+                // Otherwise, only update if not focused to avoid cursor jumps.
+                if (isInitialLoad || !isTyping) {
                     if (editor.innerHTML !== (data.content || '')) {
                         editor.innerHTML = data.content || '';
                     }
-                    editor.contentEditable = true;
                     isInitialLoad = false;
                 }
 
@@ -581,16 +577,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 const now = new Date().toISOString();
                 setDoc(docRef, {
                     title: 'Новый документ',
-                    content: '',
+                    content: '', // Empty for CSS placeholder
                     comments: [],
                     history: [],
                     createdAt: now
                 }).catch(err => console.error("Error creating document:", err));
                 
-                editor.innerHTML = ''; // Empty for CSS placeholder
-                editor.contentEditable = true;
+                // If it's a new doc, just clear the editor and stop initial load
+                if (isInitialLoad) {
+                    editor.innerHTML = ''; 
+                    isInitialLoad = false;
+                }
                 docTitleInput.value = 'Новый документ';
-                isInitialLoad = false;
 
                 // I am the Creator
                 setMyRole('1');
@@ -723,37 +721,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Persistence & History ---
 
-    // Debounce Save to prevent too many writes
+    // Debounce Save
     let saveTimeout;
     function saveContent() {
-        if (saveStatus) {
-            saveStatus.textContent = "Сохранение...";
-            saveStatus.classList.add('saving');
-        }
-
         clearTimeout(saveTimeout);
         saveTimeout = setTimeout(() => {
             const html = editor.innerHTML;
-            // Write to Firestore
             const docRef = doc(db, "documents", SESSION_ID);
+            
+            // Use updateDoc for existing docs
             updateDoc(docRef, {
                 content: html
-            }).then(() => {
-                if (saveStatus) {
-                    saveStatus.textContent = "Изменения сохранены";
-                    saveStatus.classList.remove('saving');
-                    // Fade out message after 2 secs
-                    setTimeout(() => {
-                        if (saveStatus.textContent === "Изменения сохранены") {
-                            saveStatus.textContent = "";
-                        }
-                    }, 2000);
-                }
             }).catch(err => {
-                console.error("Error saving content:", err);
-                if (saveStatus) saveStatus.textContent = "Ошибка сохранения";
+                console.error("Error saving content (trying setDoc):", err);
+                // Fallback if updateDoc fails (e.g. doc was deleted or doesn't exist yet)
+                setDoc(docRef, { content: html }, { merge: true });
             });
-        }, 300); // Shorter debounce for reliability
+        }, 300); 
     }
 
     // No longer needed, handled by onSnapshot

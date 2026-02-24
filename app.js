@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const landingPage = document.getElementById('landingPage');
     const startSessionBtn = document.getElementById('startSessionBtn');
     const downloadBtn = document.getElementById('downloadBtn');
+    const saveStatus = document.getElementById('saveStatus');
 
     // Burger Menu Elements
     const sideMenu = document.getElementById('sideMenu');
@@ -44,6 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentSelectionRange = null;
     let activeCommentId = null; // Currently viewed thread
+    let lastLocalInputTime = 0; // Timestamp of last typing
+    let isInitialLoad = true; // Flag for first snapshot
 
     // --- Force Save on Close ---
     window.addEventListener('beforeunload', () => {
@@ -85,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Tracking Changes (Multi-user Sim) ---
     editor.addEventListener('input', () => {
+        lastLocalInputTime = Date.now();
         highlightUserChanges();
         saveContent();
         checkSelection(); // Hide floating btn on edit
@@ -515,25 +519,22 @@ document.addEventListener('DOMContentLoaded', () => {
         landingPage.classList.remove('hidden');
     }
 
-    if (startSessionBtn) {
-        startSessionBtn.addEventListener('click', () => {
-            // Generate ID
-            const newSessionId = Math.random().toString(36).substring(2, 10); // simple random string
-            // Redirect to same page with param
-            const url = new URL(window.location);
-            url.searchParams.set('session', newSessionId);
-            window.location.href = url.toString();
-        });
-    }
+    startSessionBtn.addEventListener('click', () => {
+        const newSessionId = Math.random().toString(36).substring(2, 10); // simple random string
+        // Redirect to same page with param
+        const url = new URL(window.location);
+        url.searchParams.set('session', newSessionId);
+        window.location.href = url.toString();
+    });
 
     function initApp() {
         landingPage.classList.add('hidden');
         appContainer.classList.remove('hidden');
 
-        // Initial Loading State
-        // Initial Loading State
-        editor.innerHTML = ''; // No inline style to prevent gray text persistence
-        editor.contentEditable = true; // FORCE ENABLE IMMEDIATELY 
+        // Initial Loading State - indicate to user to wait
+        editor.innerHTML = '<p style="color: grey">Загрузка документа...</p>'; 
+        editor.contentEditable = false; 
+        isInitialLoad = true; 
 
         const docRef = doc(db, "documents", SESSION_ID);
 
@@ -542,10 +543,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
 
-                // Only update editor if we are not currently typing to avoid cursor jumps
-                // In a robust app, we'd use CRDTs. Here: simple check.
-                if (document.activeElement !== editor) {
-                    editor.innerHTML = data.content || '';
+                const isTyping = document.activeElement === editor;
+                const timeSinceLastInput = Date.now() - lastLocalInputTime;
+
+                // Priority 1: ALWAYS load if it's the very first time and user hasn't started typing yet
+                // Priority 2: Load if not focused and enough time passed since last edit
+                if (isInitialLoad || (!isTyping && timeSinceLastInput > 2000)) {
+                    if (editor.innerHTML !== (data.content || '')) {
+                        editor.innerHTML = data.content || '';
+                    }
+                    editor.contentEditable = true;
+                    isInitialLoad = false;
                 }
 
                 // Load Title
@@ -571,18 +579,18 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // Doc doesn't exist yet, create it empty
                 const now = new Date().toISOString();
-                const initialContent = '<p>Новый документ. Начните печатать...</p>';
                 setDoc(docRef, {
                     title: 'Новый документ',
-                    content: initialContent,
+                    content: '',
                     comments: [],
                     history: [],
                     createdAt: now
                 }).catch(err => console.error("Error creating document:", err));
                 
-                editor.innerHTML = initialContent;
+                editor.innerHTML = ''; // Empty for CSS placeholder
                 editor.contentEditable = true;
                 docTitleInput.value = 'Новый документ';
+                isInitialLoad = false;
 
                 // I am the Creator
                 setMyRole('1');
@@ -718,6 +726,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Debounce Save to prevent too many writes
     let saveTimeout;
     function saveContent() {
+        if (saveStatus) {
+            saveStatus.textContent = "Сохранение...";
+            saveStatus.classList.add('saving');
+        }
+
         clearTimeout(saveTimeout);
         saveTimeout = setTimeout(() => {
             const html = editor.innerHTML;
@@ -725,8 +738,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const docRef = doc(db, "documents", SESSION_ID);
             updateDoc(docRef, {
                 content: html
-            }).catch(err => console.error("Error saving content:", err));
-        }, 500);
+            }).then(() => {
+                if (saveStatus) {
+                    saveStatus.textContent = "Изменения сохранены";
+                    saveStatus.classList.remove('saving');
+                    // Fade out message after 2 secs
+                    setTimeout(() => {
+                        if (saveStatus.textContent === "Изменения сохранены") {
+                            saveStatus.textContent = "";
+                        }
+                    }, 2000);
+                }
+            }).catch(err => {
+                console.error("Error saving content:", err);
+                if (saveStatus) saveStatus.textContent = "Ошибка сохранения";
+            });
+        }, 300); // Shorter debounce for reliability
     }
 
     // No longer needed, handled by onSnapshot

@@ -78,6 +78,12 @@ body {
   overflow: hidden;
 }
 
+.editor[contenteditable]:empty:before {
+    content: attr(data-placeholder);
+    color: #999;
+    pointer-events: none;
+}
+
 .icon-doc {
   font-size: 24px;
 }

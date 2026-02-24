@@ -34,13 +34,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const landingPage = document.getElementById('landingPage');
     const startSessionBtn = document.getElementById('startSessionBtn');
     const downloadBtn = document.getElementById('downloadBtn');
-    const shareBtn = document.getElementById('shareBtn');
 
     // Burger Menu Elements
     const sideMenu = document.getElementById('sideMenu');
     const menuOverlay = document.getElementById('menuOverlay');
     const burgerBtn = document.getElementById('burgerBtn');
     const closeMenuBtn = document.getElementById('closeMenuBtn');
+    const shareBtn = document.getElementById('shareBtn');
 
     let currentSelectionRange = null;
     let activeCommentId = null; // Currently viewed thread
@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (cmd === 'formatBlock') {
             const currentTag = document.queryCommandValue('formatBlock');
             // If the current block is already this heading, toggle back to 'p'
-            if (currentTag.toLowerCase() === val.toLowerCase()) {
+            if (currentTag && currentTag.toLowerCase() === val.toLowerCase()) {
                 document.execCommand('formatBlock', false, 'p');
             } else {
                 document.execCommand('formatBlock', false, val);
@@ -67,9 +67,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             document.execCommand(cmd, false, val);
         }
-        
+
         editor.focus();
-        highlightUserChanges();
+        highlightUserChanges(); // Mark changes as made by current user
     });
 
     // --- Tracking Changes (Multi-user Sim) ---
@@ -151,25 +151,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    burgerBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleMenu(true);
-    });
+    if (burgerBtn) {
+        burgerBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleMenu(true);
+        });
+    }
 
-    closeMenuBtn.addEventListener('click', () => {
-        toggleMenu(false);
-    });
-
-    menuOverlay.addEventListener('click', () => {
-        toggleMenu(false);
-    });
-
-    // Close menu when clicking on any action button inside it
-    sideMenu.querySelectorAll('.menu-item-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+    if (closeMenuBtn) {
+        closeMenuBtn.addEventListener('click', () => {
             toggleMenu(false);
         });
-    });
+    }
+
+    if (menuOverlay) {
+        menuOverlay.addEventListener('click', () => {
+            toggleMenu(false);
+        });
+    }
+
+    if (sideMenu) {
+        // Close menu when clicking on any action button inside it
+        sideMenu.querySelectorAll('.menu-item-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                toggleMenu(false);
+            });
+        });
+    }
 
     // --- Comments Logic ---
 
@@ -433,14 +441,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Share Link ---
-    shareBtn.addEventListener('click', () => {
-        navigator.clipboard.writeText(window.location.href).then(() => {
-            alert('Ссылка скопирована в буфер обмена! Отправьте её коллеге.');
-        }).catch(err => {
-            console.error('Ошибка копирования:', err);
-            alert('Не удалось скопировать ссылку. Скопируйте её из адресной строки.');
+    if (shareBtn) {
+        shareBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                alert('Ссылка скопирована в буфер обмена! Отправьте её коллеге.');
+            }).catch(err => {
+                console.error('Ошибка копирования:', err);
+                alert('Не удалось скопировать ссылку. Скопируйте её из адресной строки.');
+            });
         });
-    });
+    }
 
     // --- User Switching ---
     userSwitcherBtn.addEventListener('click', () => {
@@ -493,14 +503,16 @@ document.addEventListener('DOMContentLoaded', () => {
         landingPage.classList.remove('hidden');
     }
 
-    startSessionBtn.addEventListener('click', () => {
-        // Generate ID
-        const newSessionId = Math.random().toString(36).substring(2, 10); // simple random string
-        // Redirect to same page with param
-        const url = new URL(window.location);
-        url.searchParams.set('session', newSessionId);
-        window.location.href = url.toString();
-    });
+    if (startSessionBtn) {
+        startSessionBtn.addEventListener('click', () => {
+            // Generate ID
+            const newSessionId = Math.random().toString(36).substring(2, 10); // simple random string
+            // Redirect to same page with param
+            const url = new URL(window.location);
+            url.searchParams.set('session', newSessionId);
+            window.location.href = url.toString();
+        });
+    }
 
     function initApp() {
         landingPage.classList.add('hidden');
@@ -862,42 +874,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 i--;
                 j--;
             } else if (j > 0 && (i === 0 || matrix[i][j - 1] >= matrix[i - 1][j])) {
-                // Insertion (New)
+                // Added
                 const token = newTokens[j - 1];
                 if (isTag(token)) {
-                    // If it's a tag, just insert it (formatting applied)
-                    // We don't color tags because it breaks rendering structure
-                    output.unshift(token);
+                    output.unshift(token); // Don't highlight tags as added
+                } else if (token.trim() === "") {
+                    output.unshift(token); // Don't highlight spaces
                 } else {
-                    // Text/Space
-                    output.unshift(`<span class="diff-added" data-original="Добавлено">${token}</span>`);
+                    output.unshift(`<span class="diff-added">${token}</span>`);
                 }
                 j--;
             } else {
-                // Deletion (Old)
+                // Removed
                 const token = oldTokens[i - 1];
                 if (isTag(token)) {
-                    // If tag removed, we just don't output it. 
-                    // Formatting disappears.
+                    // Don't show removed tags in view to keep structure clean
+                    // but we might need placeholders for some
+                } else if (token.trim() === "") {
+                    // ignore removed whitespace
                 } else {
-                    output.unshift(`<span class="diff-removed" title="Удалено" style="text-decoration:line-through; color:#999; background:#ffeebb;">${token}</span>`);
+                    output.unshift(`<span class="diff-removed">${token}</span>`);
                 }
                 i--;
             }
         }
 
-        return output.join('');
+        return output.join("");
     }
 
-    function restoreSnapshot(id) {
-        const snapshot = STATE.history.find(s => s.id === id);
-        if (snapshot) {
-            editor.innerHTML = snapshot.html;
+    function restoreSnapshot(historyId) {
+        const item = STATE.history.find(x => x.id === historyId);
+        if (item) {
+            editor.innerHTML = item.html;
             saveContent();
-            alert('Версия восстановлена!');
+            // Optional: notify user
         }
     }
 
-    // Initial UI setup
-    updateUserUI();
+    // --- Helpers ---
+    // (None yet extra)
+
 });

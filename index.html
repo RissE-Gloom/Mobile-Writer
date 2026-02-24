@@ -38,24 +38,45 @@
 
     <!-- Main App Container (Hidden by default until session active) -->
     <div id="appContainer" class="hidden">
-        <!-- Top Bar: Title & User/History Controls -->
-        <header class="app-header">
-            <div class="header-left">
-                <span class="icon-doc">📄</span>
-                <input type="text" class="doc-title-input" value="Новый документ" id="docTitleInput">
-                <button id="downloadBtn" class="icon-btn" style="font-size: 18px;" title="Скачать txt">📥</button>
-                <button id="shareBtn" class="icon-btn" style="font-size: 18px;" title="Поделиться ссылкой">🔗</button>
-            </div>
-            <div class="header-right">
-                <div id="expirationBadge" class="expiration-badge" title="До авто-удаления">7 дн.</div>
-                <button id="historyBtn" class="icon-btn" title="История версий">↺</button>
-                <div class="user-avatar-container" id="userSwitcherBtn">
-                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" class="user-avatar"
-                        id="currentUserAvatar">
-                    <span class="user-badge" id="currentUserId">1</span>
+        <div class="app-screen">
+            <!-- Sidebar / Burger Menu -->
+            <div id="sideMenu" class="side-menu hidden">
+                <div class="side-menu-header">
+                    <h3>Меню</h3>
+                    <button id="closeMenuBtn" class="icon-btn">✕</button>
+                </div>
+                <div class="side-menu-content">
+                    <button id="downloadBtn" class="menu-item-btn">
+                        <span class="icon">📥</span> Скачать txt
+                    </button>
+                    <button id="shareBtn" class="menu-item-btn">
+                        <span class="icon">🔗</span> Поделиться
+                    </button>
+                    <button id="historyBtn" class="menu-item-btn">
+                        <span class="icon">↺</span> История версий
+                    </button>
+                    <div class="separator"></div>
+                    <div class="menu-section-title">Пользователь</div>
+                    <div class="user-avatar-container" id="userSwitcherBtn">
+                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" class="user-avatar" id="currentUserAvatar">
+                        <div class="user-info">
+                            <span class="user-name">Я (Автор)</span>
+                            <span class="user-badge" id="currentUserId">ID: 1</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </header>
+
+            <!-- Top Bar: Title & Burger Toggle -->
+            <header class="app-header">
+                <div class="header-left">
+                    <button id="burgerBtn" class="icon-btn" style="font-size: 24px;">☰</button>
+                    <input type="text" class="doc-title-input" value="Новый документ" id="docTitleInput">
+                </div>
+                <div class="header-right">
+                    <div id="expirationBadge" class="expiration-badge" title="До авто-удаления">7 дн.</div>
+                </div>
+            </header>
 
         <!-- Formatting Toolbar (Sticky) -->
         <div class="toolbar" id="toolbar">
@@ -70,12 +91,13 @@
             </div>
         </div>
 
-        <!-- Main Editor Area -->
-        <main class="editor-container">
-            <div id="editor" class="editor" contenteditable="true" spellcheck="false">
-                <p>Начните печатать здесь...</p>
-            </div>
-        </main>
+            <!-- Main Editor Area -->
+            <main class="content-area">
+                <div id="editor" class="editor" contenteditable="true" spellcheck="false">
+                    <p>Начните печатать здесь...</p>
+                </div>
+            </main>
+        </div>
     </div>
 
     <!-- Floating "Add Comment" Button (appears on selection) -->

@@ -30,6 +30,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const historyList = document.getElementById('historyList');
     const expirationBadge = document.getElementById('expirationBadge');
 
+    // Burger Menu Elements
+    const sideMenu = document.getElementById('sideMenu');
+    const burgerBtn = document.getElementById('burgerBtn');
+    const closeMenuBtn = document.getElementById('closeMenuBtn');
+
     let currentSelectionRange = null;
     let activeCommentId = null; // Currently viewed thread
 
@@ -115,6 +120,30 @@ document.addEventListener('DOMContentLoaded', () => {
     addCommentBtn.addEventListener('click', () => {
         openCommentSheet(true); // Open in "New" mode
         addCommentBtn.classList.add('hidden');
+    });
+
+    // --- Burger Menu Logic ---
+    burgerBtn.addEventListener('click', () => {
+        sideMenu.classList.remove('hidden');
+    });
+
+    closeMenuBtn.addEventListener('click', () => {
+        sideMenu.classList.add('hidden');
+    });
+
+    // Close menu when clicking on any action button inside it
+    sideMenu.querySelectorAll('.menu-item-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            sideMenu.classList.add('hidden');
+            // Action is handled by existing listeners if IDs match
+        });
+    });
+
+    // Close menu on click outside
+    document.addEventListener('mousedown', (e) => {
+        if (!sideMenu.classList.contains('hidden') && !sideMenu.contains(e.target) && !burgerBtn.contains(e.target)) {
+            sideMenu.classList.add('hidden');
+        }
     });
 
     // --- Comments Logic ---
@@ -410,12 +439,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateUserUI() {
         const user = STATE.users[STATE.currentUser];
-        document.getElementById('currentUserId').textContent = STATE.currentUser;
-        document.getElementById('currentUserAvatar').src = document.querySelector(`.user-option[data-user-id="${STATE.currentUser}"] img`).src;
+        const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name === 'Автор' ? 'Felix' : 'Aneka'}`;
+        
+        // Update main side menu avatar
+        document.getElementById('currentUserAvatar').src = avatarUrl;
+        document.getElementById('currentUserId').textContent = user.name === 'Автор' ? 'ID: 1' : 'ID: 2';
+        
+        const userNameEl = document.querySelector('.user-name');
+        if (userNameEl) userNameEl.textContent = user.name;
 
         // Highlight active user in modal
         document.querySelectorAll('.user-option').forEach(el => el.classList.remove('active'));
-        document.querySelector(`.user-option[data-user-id="${STATE.currentUser}"]`).classList.add('active');
+        const activeOpt = document.querySelector(`.user-option[data-user-id="${STATE.currentUser}"]`);
+        if (activeOpt) activeOpt.classList.add('active');
     }
 
     // --- Session Management ---

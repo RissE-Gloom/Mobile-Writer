@@ -29,6 +29,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const historyModal = document.getElementById('historyModal');
     const historyList = document.getElementById('historyList');
     const expirationBadge = document.getElementById('expirationBadge');
+    const docTitleInput = document.getElementById('docTitleInput');
+    const appContainer = document.getElementById('appContainer');
+    const landingPage = document.getElementById('landingPage');
+    const startSessionBtn = document.getElementById('startSessionBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const shareBtn = document.getElementById('shareBtn');
 
     // Burger Menu Elements
     const sideMenu = document.getElementById('sideMenu');
@@ -50,9 +56,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const cmd = btn.dataset.cmd;
         const val = btn.dataset.val || null;
 
-        document.execCommand(cmd, false, val);
+        if (cmd === 'formatBlock') {
+            const currentTag = document.queryCommandValue('formatBlock');
+            // If the current block is already this heading, toggle back to 'p'
+            if (currentTag.toLowerCase() === val.toLowerCase()) {
+                document.execCommand('formatBlock', false, 'p');
+            } else {
+                document.execCommand('formatBlock', false, val);
+            }
+        } else {
+            document.execCommand(cmd, false, val);
+        }
+        
         editor.focus();
-        highlightUserChanges(); // Mark changes as made by current user
+        highlightUserChanges();
     });
 
     // --- Tracking Changes (Multi-user Sim) ---
@@ -399,9 +416,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- Export to TXT ---
-    const downloadBtn = document.getElementById('downloadBtn');
-    const docTitleInput = document.getElementById('docTitleInput');
-
     downloadBtn.addEventListener('click', () => {
         // User requested "only text" and "text format", so we use innerText.
         // We add \uFEFF (Byte Order Mark) to ensure Windows opens it as UTF-8.
@@ -419,7 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Share Link ---
-    document.getElementById('shareBtn').addEventListener('click', () => {
+    shareBtn.addEventListener('click', () => {
         navigator.clipboard.writeText(window.location.href).then(() => {
             alert('Ссылка скопирована в буфер обмена! Отправьте её коллеге.');
         }).catch(err => {
@@ -447,11 +461,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateUserUI() {
         const user = STATE.users[STATE.currentUser];
+        if (!user) return;
+
         const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name === 'Автор' ? 'Felix' : 'Aneka'}`;
         
         // Update main side menu avatar
-        document.getElementById('currentUserAvatar').src = avatarUrl;
-        document.getElementById('currentUserId').textContent = user.name === 'Автор' ? 'ID: 1' : 'ID: 2';
+        const avatarImg = document.getElementById('currentUserAvatar');
+        if (avatarImg) avatarImg.src = avatarUrl;
+
+        const userIdEl = document.getElementById('currentUserId');
+        if (userIdEl) userIdEl.textContent = user.name === 'Автор' ? 'ID: 1' : 'ID: 2';
         
         const userNameEl = document.querySelector('.user-name');
         if (userNameEl) userNameEl.textContent = user.name;

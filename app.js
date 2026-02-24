@@ -128,9 +128,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Show button
         if (rect.width > 0) {
             addCommentBtn.classList.remove('hidden');
-            // Position above selection
-            addCommentBtn.style.top = `${rect.top + window.scrollY - 50}px`;
+            // Position BELOW selection to avoid mobile context menu overlap
+            addCommentBtn.style.top = `${rect.bottom + window.scrollY + 10}px`;
             addCommentBtn.style.left = `${rect.left + (rect.width / 2)}px`;
+            addCommentBtn.style.bottom = 'auto'; // Fix vertical stretching on mobile
             currentSelectionRange = range.cloneRange();
         }
     }
